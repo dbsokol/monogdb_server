@@ -95,7 +95,7 @@ function FindRecords(parent_response, dbo, parsed_request, database_query, proje
 
 
 // Update records in the database:
-function UpdateRecords(dbo, database_query, new_values, debug=false) {
+function UpdateRecords(parent_response, dbo, database_query, new_values, debug=false) {
   dbo.collection("samples").updateOne(database_query, new_values, function(err, response) {
     if (err) throw err;
     if (debug==true) console.log("| [UpdateRecords]: Updated [" + response.result.nModified + "] records.");
@@ -147,8 +147,8 @@ app.patch('/', (request, response) => {
     var database_query = CreateDatabasePatchQuery(parsed_request, debug);
     var new_values = CreateNewValues(parsed_request, debug);
 
-    UpdateRecords(dbo, database_query, new_values, debug);
-    FindRecords(response, dbo, parsed_request, database_query, projection, debug);
+    UpdateRecords(response, dbo, database_query, new_values, debug)
+    FindRecords(response, dbo, parsed_request, database_query, projection, debug)
 
     db.close();
   
