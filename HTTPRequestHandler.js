@@ -116,7 +116,7 @@ app.get('/', (request, response) => {
     
     var debug = true;
 
-    if (debug) console.log("\n[GetRequestHandler.js]:_________________________________________________");
+    if (debug) console.log("\n[HTTPRequestHandler.js]:_________________________________________________");
     
     var dbo = db.db("labelingData");
     var parsed_request = ParseGetRequest(request, debug);
@@ -139,7 +139,7 @@ app.patch('/', (request, response) => {
     var debug = true;
 
     if (debug) console.log(request.body);
-    if (debug) console.log("\n[PatchRequestHandler.js]:_________________________________________________");
+    if (debug) console.log("\n[HTTPRequestHandler.js]:_________________________________________________");
         
     var dbo = db.db("labelingData");
     var parsed_request = ParsePatchRequest(request, debug);

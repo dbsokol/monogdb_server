@@ -9,23 +9,9 @@ var ObjectID = require('mongodb').ObjectID;
 // Parse incoming Get request and return all fields in a single object:
 function ParseGetRequest(request, debug=false) {
   var parsed_request = {
-    batch_size: 10,//Number(request.query.batch_size),
-    user_name: request.headers.user,
+    update: (request.query.update == "true"),
   };
   if (debug==true) console.log("| [ParseGetRequest]: Parsing incoming request.");
-  return parsed_request;
-};
-
-
-// Parse incoming request and return all fields in a single object:
-function ParsePatchRequest(request, debug=false) {
-  var parsed_request = {
-    _id: ObjectID(request.body._id),
-    raw_new_values: request.body,
-    batch_size: 1,//Number(request.query.batch_size),
-    user_name: request.headers.user,
-  };
-  if (debug==true) console.log("| [ParsePatchRequest]: Parsing incoming request.");
   return parsed_request;
 };
 
@@ -45,48 +31,44 @@ function CreateProjection(debug=false) {
 
 
 // Create database query:
-function CreateDatabaseGetQuery(parsed_request, debug=false) {
-  if (parsed_request.user_name=="Daniel") var database_query = { taggedByDaniel: false };
-  else if (parsed_request.user_name=="Abhishek") var database_query = { taggedByAbhishek: false };
-  else var database_query = { taggedByAbhishek: false };
-  // else console.log("| [CreateDatabaseGetQuery]: User does not exist in database (user must be either 'Daniel' or 'Abhishek')");
-  if (debug==true) console.log("| [CreateDatabaseGetQuery]: Creating mongo databse query.");
-  return database_query;
-}
-
-
-// Create database query:
-function CreateDatabasePatchQuery(parsed_request, debug=false) {
-  var database_query = {_id: parsed_request._id};
+function CreateDatabasePatchQuery(debug=false) {
+  var database_query = {}; //{_id: ObjectID("5cc7645f84552d3b8a42912f")};
   if (debug==true) console.log("| [CreateDatabasePatchQuery]: Creating mongo databse query.");
   return database_query;
 }
 
 
 // Create new values:
-function CreateNewValues(parsed_request, debug=false) {
-  var new_values = { $set: { taggedByDaniel: parsed_request.test_field, }, };
-  if (parsed_request.user_name == "Daniel") {
-    var new_values = { $set: { 
-      DanielTags: parsed_request.raw_new_values.DanielTags,
-      taggedByDaniel: parsed_request.raw_new_values.taggedByDaniel, 
-    }, };
-  }
-  else if (parsed_request.user_name == "Abhishek") {
-    var new_values = { $set: { 
-      AbhishekTags: parsed_request.raw_new_values.AbhishekTags,
-      taggedByAbhishek: parsed_request.raw_new_values.taggedByAbhishek,
-    }, };
-  }
-  else console.log("User does not exist in database (user must be either 'Daniel' or 'Abhishek')");
+function CreateNewValues(debug=false) {
+  var new_values = { $set: { 
+    AbhishekTags: {
+      isMatch: false,
+      isEmpty: false,
+      isNotMatch: false,
+      isEdgeMatch: false,
+      isEdgeEmpty: false,
+      ignore: false,
+    }, 
+    DanielTags: {
+      isMatch: false,
+      isEmpty: false,
+      isNotMatch: false,
+      isEdgeMatch: false,
+      isEdgeEmpty: false,
+      ignore: false,
+    },
+    taggedByAbhishek: false,
+    taggedByDaniel: false,
+  }, };
+ 
   if (debug==true) console.log("| [CreateNewValues]: Creating array of new values to be updated.");
   return new_values;
 }
 
 
 // Finds records taking the given user as input:
-function FindRecords(parent_response, dbo, parsed_request, database_query, projection, debug=false) {
-  dbo.collection("samples").find(database_query, {projection}).limit(parsed_request.batch_size).toArray(function(err, response) {
+function FindRecords(parent_response, dbo, batch_size, database_query, projection, debug=false) {
+  dbo.collection("samples").find(database_query, {projection}).limit(batch_size).toArray(function(err, response) {
   if (err) throw err;
   if (debug==true) console.log("| [FindRecords]: Found [" + response.length + "] records.\n");
   parent_response.send(response);
@@ -96,7 +78,7 @@ function FindRecords(parent_response, dbo, parsed_request, database_query, proje
 
 // Update records in the database:
 function UpdateRecords(parent_response, dbo, database_query, new_values, debug=false) {
-  dbo.collection("samples").updateOne(database_query, new_values, function(err, response) {
+  dbo.collection("samples").updateMany(database_query, new_values, function(err, response) {
     if (err) throw err;
     if (debug==true) console.log("| [UpdateRecords]: Updated [" + response.result.nModified + "] records.");
   });
@@ -108,47 +90,29 @@ app.use(cors());
 app.use(express.json());
 
 
-// Get handler:
-app.get('/', (request, response) => {
-	MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
-    
-    if (err) throw err;
-    
-    var debug = true;
-
-    if (debug) console.log("\n[GetRequestHandler.js]:_________________________________________________");
-    
-    var dbo = db.db("labelingData");
-    var parsed_request = ParseGetRequest(request, debug);
-    var projection = {} // CreateProjection(debug);
-    var database_query = CreateDatabaseGetQuery(parsed_request, debug);
-    
-    FindRecords(response, dbo, parsed_request, database_query, projection, debug)
-    db.close();
-  
-  });
-});
-
-
 // Patch handler:
-app.patch('/', (request, response) => {
+app.get('/', (request, response) => {
   MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
     
     if (err) throw err;
-    
+    if (request.query.update!="true") {
+      console.log(request.query.update!="true")
+      db.close();
+    }
+
     var debug = true;
 
     if (debug) console.log(request.body);
-    if (debug) console.log("\n[PatchRequestHandler.js]:_________________________________________________");
+    if (debug) console.log("\n[BulkDatabaseUpdate.js]:_________________________________________________");
         
     var dbo = db.db("labelingData");
-    var parsed_request = ParsePatchRequest(request, debug);
+    var batch_size = 10;
     var projection = {} // CreateProjection(debug);
-    var database_query = CreateDatabasePatchQuery(parsed_request, debug);
-    var new_values = CreateNewValues(parsed_request, debug);
+    var database_query = CreateDatabasePatchQuery(debug);
+    var new_values = CreateNewValues(debug);
 
     UpdateRecords(response, dbo, database_query, new_values, debug)
-    FindRecords(response, dbo, parsed_request, database_query, projection, debug)
+    FindRecords(response, dbo, batch_size, database_query, projection, debug)
 
     db.close();
   
