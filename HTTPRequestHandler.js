@@ -109,29 +109,24 @@ app.use(express.json());
 
 
 // Get handler:
-app.get('/', (request, response) => {
+app.get('/labels', (request, response) => {
 	MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
-    
     if (err) throw err;
-    
     var debug = true;
-
     if (debug) console.log("\n[HTTPRequestHandler.js]:_________________________________________________");
-    
     var dbo = db.db("labelingData");
     var parsed_request = ParseGetRequest(request, debug);
     var projection = {} // CreateProjection(debug);
     var database_query = CreateDatabaseGetQuery(parsed_request, debug);
-    
+
     FindRecords(response, dbo, parsed_request, database_query, projection, debug)
-    db.close();
-  
+    db.close();  
   });
 });
 
 
 // Patch handler:
-app.patch('/', (request, response) => {
+app.patch('/labels', (request, response) => {
   MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
     
     if (err) throw err;
